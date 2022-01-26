@@ -1,14 +1,19 @@
 /* eslint-disable new-cap */
 import { AppProps } from 'next/app';
-import { Fragment, useEffect } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { DefaultSeo } from 'next-seo';
 import '@styles/tailwind.css';
 import '@styles/global.css';
+import '@/styles/locomotive-scroll.css';
 import { ScrollTrigger } from '@/lib/gsap';
 
 const App = ({ Component, pageProps }: AppProps) => {
+  const [forceReRender, setForceReRender] = useState(0);
+
   useEffect(() => {
-    const scrollContainer = document.querySelector('.scroll-container') as HTMLDivElement;
+    const scrollContainer = document.querySelector(
+      '[data-scroll-container]',
+    ) as HTMLDivElement;
 
     import('locomotive-scroll').then((LocomotiveScroll) => {
       const locomotiveScroll = new LocomotiveScroll.default({
@@ -47,6 +52,8 @@ const App = ({ Component, pageProps }: AppProps) => {
 
       ScrollTrigger.refresh();
 
+      setForceReRender((f) => f + 1);
+
       return () => {
         locomotiveScroll.destroy();
         ScrollTrigger.removeEventListener('refresh', updateLocomotiveScroll);
@@ -57,8 +64,8 @@ const App = ({ Component, pageProps }: AppProps) => {
   return (
     <Fragment>
       <DefaultSeo title="Fireboy DML" />
-      <div className="bg-orange-yellow scroll-container">
-        <Component {...pageProps} />
+      <div className="bg-orange-yellow" data-scroll-container>
+        <Component {...pageProps} key={forceReRender} />
       </div>
     </Fragment>
   );
