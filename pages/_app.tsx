@@ -1,39 +1,46 @@
 /* eslint-disable new-cap */
 import { AppProps } from 'next/app';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useState, useRef } from 'react';
 import { DefaultSeo } from 'next-seo';
+import useResizeObserver from 'use-resize-observer';
 import '@styles/tailwind.css';
 import '@styles/global.css';
 import '@/styles/locomotive-scroll.css';
 import { ScrollTrigger } from '@/lib/gsap';
 
-const App = ({ Component, pageProps }: AppProps) => {
+function App({ Component, pageProps }: AppProps) {
   const [forceReRender, setForceReRender] = useState(0);
+  const locomotiveScrollPackageRef = useRef<any>();
+  const locomotiveScrollRef = useRef<any>(null);
+  const scrollContainerRef = useRef(null);
+  const { height } = useResizeObserver({ ref: scrollContainerRef });
 
   useEffect(() => {
-    const scrollContainer = document.querySelector(
-      '[data-scroll-container]',
-    ) as HTMLDivElement;
+    (async () => {
+      if (!locomotiveScrollPackageRef?.current) {
+        locomotiveScrollPackageRef.current = (await import('locomotive-scroll')).default;
+      }
 
-    import('locomotive-scroll').then((LocomotiveScroll) => {
-      const locomotiveScroll = new LocomotiveScroll.default({
-        el: scrollContainer,
-        smooth: true,
-        lerp: 0.08,
-      });
+      if (!locomotiveScrollRef?.current) {
+        locomotiveScrollRef.current = new locomotiveScrollPackageRef.current({
+          el: scrollContainerRef.current,
+          smooth: true,
+          lerp: 0.06,
+        });
+      }
 
-      locomotiveScroll.on('scroll', ScrollTrigger.update);
+      locomotiveScrollRef.current.on('scroll', ScrollTrigger.update);
 
-      ScrollTrigger.scrollerProxy(scrollContainer, {
+      ScrollTrigger.scrollerProxy(scrollContainerRef.current, {
         scrollTop(value) {
           return arguments.length
-            ? locomotiveScroll.scrollTo(value, 0, 0)
-            : locomotiveScroll.scroll.instance.scroll.y;
+            ? locomotiveScrollRef.current.scrollTo(value, 0, 0)
+            : locomotiveScrollRef.current.scroll.instance.scroll.y;
         },
         scrollLeft(value) {
           return arguments.length
-            ? locomotiveScroll.scrollTo(value, 0, 0)
-            : locomotiveScroll.scroll.instance.scroll.x;
+            ? locomotiveScrollRef.current.scrollTo(value, 0, 0)
+            : locomotiveScrollRef.current.scroll.instance.scroll.x;
         },
         getBoundingClientRect() {
           return {
@@ -43,32 +50,30 @@ const App = ({ Component, pageProps }: AppProps) => {
             height: window.innerHeight,
           };
         },
-        pinType: scrollContainer.style.transform ? 'transform' : 'fixed',
       });
-
-      const updateLocomotiveScroll = () => locomotiveScroll.update();
-
-      ScrollTrigger.addEventListener('refresh', updateLocomotiveScroll);
 
       ScrollTrigger.refresh();
 
       setForceReRender((f) => f + 1);
+    })();
 
-      return () => {
-        locomotiveScroll.destroy();
-        ScrollTrigger.removeEventListener('refresh', updateLocomotiveScroll);
-      };
-    });
+    return () => {
+      locomotiveScrollRef.current?.destroy();
+    };
   }, []);
+
+  useEffect((): void => {
+    locomotiveScrollRef.current?.update();
+  }, [height]);
 
   return (
     <Fragment>
       <DefaultSeo title="Fireboy DML" />
-      <div className="bg-orange-yellow" data-scroll-container>
+      <div className="bg-orange-yellow" data-scroll-container ref={scrollContainerRef}>
         <Component {...pageProps} key={forceReRender} />
       </div>
     </Fragment>
   );
-};
+}
 
 export default App;
